@@ -124,7 +124,8 @@ def generate_buy_hold_signal(
     close_prices: pd.Series,
 ) -> pd.Series:
     """
-    Remain continuously invested.
+    Remain continuously invested from the beginning
+    of the available backtest period.
     """
 
     return pd.Series(
@@ -337,13 +338,33 @@ def backtest_signal(
     )
 
     if strategy_name == "Buy and Hold":
-        # Model one initial entry for a fair comparison.
+        # Buy and Hold enters at the beginning of the sample
+        # and remains invested throughout.
+        backtest["Position"] = 1.0
+        backtest["Position Change"] = 0.0
+
         backtest.iloc[
             0,
             backtest.columns.get_loc(
                 "Position Change"
             ),
         ] = 1.0
+
+    else:
+        # Active signals formed using today's close are
+        # applied from the following trading day.
+        backtest["Position"] = (
+            backtest["Signal"]
+            .shift(1)
+            .fillna(0)
+        )
+
+        backtest["Position Change"] = (
+            backtest["Position"]
+            .diff()
+            .abs()
+            .fillna(0)
+        )
 
     backtest["Trading Cost"] = (
         backtest["Position Change"]
